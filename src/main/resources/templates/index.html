@@ -33,15 +33,15 @@
     // 1. Lấy tất cả parameter contexts
     // ================================
     function loadAllParameterContexts() {
-        fetch('/parameter-contexts')
-            .then(r => r.json())
-            .then(data => {
-                allContexts = data.parameterContexts || [];
-
-                loadProcessGroups();
-            })
-            .catch(err => console.error("Load parameter contexts error:", err));
-    }
+    fetch('/parameter-contexts')
+        .then(r => r.json())
+        .then(data => {
+            allContexts = data || [];
+            console.log("Loaded Parameter Contexts:", allContexts);
+            loadProcessGroups();
+        })
+        .catch(err => console.error("Load parameter contexts error:", err));
+}
 
     // ================================
     // 2. Lấy danh sách PG từ backend
@@ -54,7 +54,7 @@ function loadProcessGroups() {
         console.log("1",data)
             // Truy xuất đúng mảng processGroups
             let groups = [];
-              console.log("data",data);
+
             if (data.processGroupFlow && data.processGroupFlow.flow && Array.isArray(data.processGroupFlow.flow.processGroups)) {
                 groups = data.processGroupFlow.flow.processGroups;
             } else if (Array.isArray(data.processGroups)) {
@@ -70,54 +70,48 @@ function loadProcessGroups() {
     // 3. Render bảng PG
     // ================================
     function renderProcessGroups(groups) {
-        const tbody = document.getElementById("pgTableBody");
-        tbody.innerHTML = "";
+    const tbody = document.getElementById("pgTableBody");
+    tbody.innerHTML = "";
 
-        groups.forEach(pg => {
-            const tr = document.createElement("tr");
+    groups.forEach(pg => {
+        const tr = document.createElement("tr");
 
-            // NAME
-            tr.innerHTML += `<td>${pg.name}</td>`;
+        tr.innerHTML += `<td>${pg.name}</td>`;
+        tr.innerHTML += `<td>${pg.id}</td>`;
+        tr.innerHTML += `
+            <td>
+                <button onclick="updateState('${pg.id}','start')">Start</button>
+                <button onclick="updateState('${pg.id}','stop')">Stop</button>
+            </td>
+        `;
 
-            // ID
-            tr.innerHTML += `<td>${pg.id}</td>`;
+        const tdParam = document.createElement("td");
+        const select = document.createElement("select");
 
-            // ACTIONS
-            tr.innerHTML += `
-                <td>
-                    <button onclick="updateState('${pg.id}','start')">Start</button>
-                    <button onclick="updateState('${pg.id}','stop')">Stop</button>
-                </td>
-            `;
+        const emptyOption = document.createElement("option");
+        emptyOption.value = "";
+        emptyOption.textContent = "-- Select Parameter Context --";
+        select.appendChild(emptyOption);
 
-            // PARAMETER DROPDOWN
-            const tdParam = document.createElement("td");
-            const select = document.createElement("select");
+        // Lặp qua tất cả context
+        allContexts.forEach(ctx => {
+            const ctxName = ctx.component.name;
+            const used = ctx.usedByPGs && ctx.usedByPGs.includes(pg.name);
 
-            const emptyOption = document.createElement("option");
-            emptyOption.value = "";
-            emptyOption.textContent = "-- Select Parameter --";
-            select.appendChild(emptyOption);
+            const opt = document.createElement("option");
+            opt.value = ctxName;
+            opt.textContent = ctxName;  // chỉ hiển thị tên context
+            if (used) opt.selected = true;
 
-            // Lọc contexts đang dùng PG này
-            const usedContexts = allContexts.filter(ctx => ctx.usedByPGs && ctx.usedByPGs.includes(pg.name));
-
-            allContexts.forEach(ctx => {
-                ctx.component.parameters.forEach(p => {
-                    const opt = document.createElement("option");
-                    opt.value = p.parameter.name;
-                    opt.textContent = p.parameter.name;
-                    // nếu context này đang dùng PG hiện tại thì select
-                    if (usedContexts.includes(ctx)) opt.selected = true;
-                    select.appendChild(opt);
-                });
-            });
-
-            tdParam.appendChild(select);
-            tr.appendChild(tdParam);
-            tbody.appendChild(tr);
+            select.appendChild(opt);
         });
-    }
+
+        tdParam.appendChild(select);
+        tr.appendChild(tdParam);
+        tbody.appendChild(tr);
+    });
+}
+
 
     // ================================
     // 4. Start / Stop PG
