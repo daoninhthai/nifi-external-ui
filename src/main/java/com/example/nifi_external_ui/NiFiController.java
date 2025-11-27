@@ -61,4 +61,13 @@ public class NiFiController {
     public List<Map<String, Object>> getAllParameterContexts() {
         return niFiService.getAllParameterContexts();
     }
+
+    @PostMapping("/process-groups/{id}/set-parameter-context")
+    public String setParameterContext(@PathVariable("id") String pgId,
+                                      @RequestBody Map<String, String> body) {
+        String pcId = body.get("pcId");
+        if (pcId == null || pcId.isEmpty()) return "No parameter context selected";
+        niFiService.setParameterContextForPG(pgId, pcId);
+        return "Parameter context updated";
+    }
 }

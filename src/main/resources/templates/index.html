@@ -88,23 +88,28 @@ function loadProcessGroups() {
         const tdParam = document.createElement("td");
         const select = document.createElement("select");
 
+        select.onchange = () => updateParameterContext(pg.id, select.value);
+
         const emptyOption = document.createElement("option");
         emptyOption.value = "";
         emptyOption.textContent = "-- Select Parameter Context --";
         select.appendChild(emptyOption);
 
         // Lặp qua tất cả context
-        allContexts.forEach(ctx => {
-            const ctxName = ctx.component.name;
-            const used = ctx.usedByPGs && ctx.usedByPGs.includes(pg.name);
+       allContexts.forEach(ctx => {
+    const ctxId = ctx.id;           // ID thực sự dùng để PUT
+    const ctxName = ctx.component.name; // Tên hiển thị
 
-            const opt = document.createElement("option");
-            opt.value = ctxName;
-            opt.textContent = ctxName;  // chỉ hiển thị tên context
-            if (used) opt.selected = true;
+    const used = ctx.usedByPGs && ctx.usedByPGs.includes(pg.name);
 
-            select.appendChild(opt);
-        });
+    const opt = document.createElement("option");
+    opt.value = ctxId;          // gửi id lên backend
+    opt.textContent = ctxName;  // chỉ hiển thị tên context
+    if (used) opt.selected = true;
+
+    select.appendChild(opt);
+});
+
 
         tdParam.appendChild(select);
         tr.appendChild(tdParam);
@@ -123,6 +128,19 @@ function loadProcessGroups() {
             .catch(alert);
     }
 
+// ================================
+// 5. Cập nhật Parameter Context
+// ================================
+function updateParameterContext(pgId, pcId) {
+    fetch(`/process-groups/${pgId}/set-parameter-context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pcId })
+    })
+    .then(r => r.text())
+    .then(alert)
+    .catch(err => alert(err));
+}
     // INIT
     loadAllParameterContexts();
 </script>

@@ -270,5 +270,80 @@ private List<Map<String, Object>> getProcessGroupsRecursive(String groupId) {
         return (String) component.get("name");
 
     }
+//    public void setParameterContextForPG(String pgId, String pcId) {
+//        Map<String, Object> pgFlow = getProcessGroupFlow(pgId);
+//
+//        if (pgFlow == null) throw new RuntimeException("Cannot get PG flow for " + pgId);
+//
+//        Map<String,Object> pgFlowMap = (Map<String,Object>) pgFlow.get("processGroupFlow");
+//        Map<String,Object> component = (Map<String,Object>) pgFlowMap.get("component");
+//        Map<String,Object> revisionInfo = (Map<String,Object>) pgFlow.get("revision");
+//
+//        Map<String,Object> revision = new HashMap<>();
+//        revision.put("clientId", revisionInfo.get("clientId"));
+//        revision.put("version", revisionInfo.get("version"));
+//
+//        Map<String,Object> paramContextMap = new HashMap<>();
+//        paramContextMap.put("id", pcId);
+//        component.put("parameterContext", paramContextMap);
+//
+//        Map<String,Object> body = new HashMap<>();
+//        body.put("revision", revision);
+//        body.put("disconnectedNodeAcknowledged", false);
+//        body.put("processGroupUpdateStrategy", "DIRECT_CHILDREN");
+//        body.put("component", component);
+//
+//        HttpHeaders headers = new HttpHeaders();
+//        headers.setContentType(MediaType.APPLICATION_JSON);
+//        headers.add("X-Requested-With", "XMLHttpRequest");
+//        headers.add("Request-Token", "__Secure-Request-Token"); // token thật
+//
+//        String url = NIFI_API_BASE + "/process-groups/" + pgId;
+//        restTemplate.put(url, new HttpEntity<>(body, headers));
+//    }
+public void setParameterContextForPG(String pgId, String pcId) {
+    // 1. Lấy PG info từ ?uiOnly=true để có revision hợp lệ
+    String urlGet = NIFI_API_BASE + "/process-groups/" + pgId + "?uiOnly=true";
+    HttpHeaders headersGet = new HttpHeaders();
+    headersGet.set("Accept", "application/json, text/javascript, */*; q=0.01");
+    headersGet.set("X-Requested-With", "XMLHttpRequest");
+    headersGet.set("Request-Token", "__Secure-Request-Token"); // token thật
+    Map<String, Object> pgFlow = restTemplate.exchange(urlGet, HttpMethod.GET,
+            new HttpEntity<>(headersGet), Map.class).getBody();
+
+    if (pgFlow == null) throw new RuntimeException("Cannot get PG flow for " + pgId);
+
+    Map<String, Object> component = (Map<String, Object>) ((Map<String, Object>) pgFlow.get("component"));
+    Map<String, Object> revisionInfo = (Map<String, Object>) pgFlow.get("revision");
+
+    if (component == null || revisionInfo == null)
+        throw new RuntimeException("Missing component or revision info for PG " + pgId);
+
+    // 2. Tạo revision mới
+    Map<String, Object> revision = new HashMap<>();
+    revision.put("clientId", revisionInfo.get("clientId"));
+    revision.put("version", revisionInfo.get("version"));
+
+    // 3. Gán ParameterContext mới
+    Map<String, Object> paramContextMap = new HashMap<>();
+    paramContextMap.put("id", pcId);
+    component.put("parameterContext", paramContextMap);
+
+    // 4. Tạo body PUT
+    Map<String, Object> body = new HashMap<>();
+    body.put("revision", revision);
+    body.put("disconnectedNodeAcknowledged", false);
+    body.put("processGroupUpdateStrategy", "DIRECT_CHILDREN");
+    body.put("component", component);
+
+    // 5. PUT lên NiFi
+    HttpHeaders headersPut = new HttpHeaders();
+    headersPut.setContentType(MediaType.APPLICATION_JSON);
+    headersPut.add("X-Requested-With", "XMLHttpRequest");
+    headersPut.add("Request-Token", "__Secure-Request-Token"); // token thật
+
+    String urlPut = NIFI_API_BASE + "/process-groups/" + pgId;
+    restTemplate.put(urlPut, new HttpEntity<>(body, headersPut));
+}
 
 }
