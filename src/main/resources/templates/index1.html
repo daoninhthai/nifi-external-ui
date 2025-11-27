@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NiFi External UI</title>
+
+    <style>
+        #paramModal {
+            display: none;
+            position: fixed;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+        }
+        #paramContent {
+            background: white;
+            width: 400px;
+            padding: 20px;
+            margin: 100px auto;
+            border-radius: 5px;
+        }
+        table { border-collapse: collapse; width: 100%; }
+        td, th { padding: 8px; border: 1px solid #ccc; }
+    </style>
+
+    <script>
+
+        /* =====================================
+           LOAD PROCESS GROUP LIST FROM BACKEND
+        ===================================== */
+        function loadProcessGroups() {
+            fetch("/process-groups-list")
+                .then(r => r.json())
+                .then(data => renderPGTable(data))
+                .catch(err => alert("Load PG error: " + err));
+        }
+
+        function renderPGTable(list) {
+            const tbody = document.getElementById("tbody");
+            tbody.innerHTML = "";
+
+            list.forEach(pg => {
+                const tr = document.createElement("tr");
+
+                tr.innerHTML = `
+                    <td>${pg.name}</td>
+                    <td>${pg.id}</td>
+                    <td>
+                        <button onclick="updateState('${pg.id}', 'start')">Start</button>
+                        <button onclick="updateState('${pg.id}', 'stop')">Stop</button>
+                        <button onclick="showParameters('${pg.id}')">Parameters</button>
+                    </td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* ================================
+           START / STOP PROCESS GROUP
+        ================================= */
+        function updateState(groupId, action) {
+            fetch(`/process-groups/${groupId}/${action}`, { method: "POST" })
+                .then(r => r.text())
+                .then(alert)
+                .catch(alert);
+        }
+
+        /* ================================
+           SHOW ALL PARAMETER CONTEXTS
+        ================================= */
+        function showParameters(pgId) {
+            fetch(`/parameter-contexts`)
+                .then(r => r.json())
+                .then(data => renderParamModal(pgId, data))
+                .catch(err => alert("Error: " + err));
+        }
+
+        /* ================================
+           RENDER POPUP
+        ================================= */
+        function renderParamModal(pgId, contexts) {
+            const modal = document.getElementById("paramModal");
+            const listDiv = document.getElementById("paramList");
+
+            listDiv.innerHTML = "";
+
+            contexts.forEach(ctx => {
+                const comp = ctx.component;
+
+                listDiv.innerHTML += `
+                    <h4>Context: ${comp.name}</h4>
+                `;
+
+                comp.parameters.forEach(item => {
+                    const p = item.parameter;
+
+                    listDiv.innerHTML += `
+                        <div style="margin-bottom: 10px;">
+                            <label><b>${p.name}</b></label><br>
+                            <input style="width:100%" type="text" id="param_${p.name}" value="${p.value || ''}">
+                        </div>
+                    `;
+                });
+
+                listDiv.innerHTML += `<hr>`;
+            });
+
+            document.getElementById("saveParamBtn").onclick =
+                () => saveParameters(pgId, contexts);
+
+            modal.style.display = "block";
+        }
+
+        /* ================================
+           CLOSE MODAL
+        ================================= */
+        function closeModal() {
+            document.getElementById("paramModal").style.display = "none";
+        }
+
+        /* ================================
+           SAVE PARAMETERS
+        ================================= */
+        function saveParameters(pgId, contexts) {
+
+            const updatePayload = [];
+
+            contexts.forEach(ctx => {
+                const comp = ctx.component;
+
+                const params = comp.parameters.map(item => {
+                    const p = item.parameter;
+
+                    return {
+                        name: p.name,
+                        value: document.getElementById("param_" + p.name).value,
+                        sensitive: p.sensitive
+                    };
+                });
+
+                updatePayload.push({
+                    contextId: comp.id,
+                    params: params
+                });
+            });
+
+            fetch(`/parameter-contexts`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatePayload)
+            })
+            .then(r => r.text())
+            .then(msg => {
+                alert(msg);
+                closeModal();
+            })
+            .catch(err => alert(err));
+        }
+
+        // Load PG when page loads
+        window.onload = loadProcessGroups;
+
+    </script>
+</head>
+
+<body>
+
+<h1>NiFi Process Groups</h1>
+
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>ID</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+</table>
+
+<!-- ================================
+     MODAL PARAMETER
+================================ -->
+<div id="paramModal">
+    <div id="paramContent">
+        <h3>All Parameter Contexts</h3>
+        <div id="paramList"></div>
+
+        <button id="saveParamBtn">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+    </div>
+</div>
+
+</body>
+</html>

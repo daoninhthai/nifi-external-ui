@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>NiFi External UI</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        td, th { padding: 8px 12px; border: 1px solid #ccc; }
+        select { padding: 5px; }
+        button { padding: 4px 10px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+<h1>NiFi Process Groups</h1>
+
+<table>
+    <thead>
+    <tr>
+        <th>Name</th>
+        <th>ID</th>
+        <th>Actions</th>
+        <th>Parameter</th>
+    </tr>
+    </thead>
+    <tbody id="pgTableBody"></tbody>
+</table>
+
+<script>
+    let allContexts = []; // chứa toàn bộ parameter contexts
+
+    // ================================
+    // 1. Lấy tất cả parameter contexts
+    // ================================
+    function loadAllParameterContexts() {
+        fetch('/parameter-contexts')
+            .then(r => r.json())
+            .then(data => {
+                allContexts = data.parameterContexts || [];
+
+                loadProcessGroups();
+            })
+            .catch(err => console.error("Load parameter contexts error:", err));
+    }
+
+    // ================================
+    // 2. Lấy danh sách PG từ backend
+    // ================================
+
+function loadProcessGroups() {
+    fetch("/process-groups-list")
+        .then(r => r.json())
+        .then(data => {
+        console.log("1",data)
+            // Truy xuất đúng mảng processGroups
+            let groups = [];
+              console.log("data",data);
+            if (data.processGroupFlow && data.processGroupFlow.flow && Array.isArray(data.processGroupFlow.flow.processGroups)) {
+                groups = data.processGroupFlow.flow.processGroups;
+            } else if (Array.isArray(data.processGroups)) {
+                groups = data.processGroups;
+            } else {
+                console.error("Không tìm thấy mảng processGroups trong response:", data);
+            }
+            renderProcessGroups(groups);
+        })
+        .catch(err => console.error("Load PG error:", err));
+}
+    // ================================
+    // 3. Render bảng PG
+    // ================================
+    function renderProcessGroups(groups) {
+        const tbody = document.getElementById("pgTableBody");
+        tbody.innerHTML = "";
+
+        groups.forEach(pg => {
+            const tr = document.createElement("tr");
+
+            // NAME
+            tr.innerHTML += `<td>${pg.name}</td>`;
+
+            // ID
+            tr.innerHTML += `<td>${pg.id}</td>`;
+
+            // ACTIONS
+            tr.innerHTML += `
+                <td>
+                    <button onclick="updateState('${pg.id}','start')">Start</button>
+                    <button onclick="updateState('${pg.id}','stop')">Stop</button>
+                </td>
+            `;
+
+            // PARAMETER DROPDOWN
+            const tdParam = document.createElement("td");
+            const select = document.createElement("select");
+
+            const emptyOption = document.createElement("option");
+            emptyOption.value = "";
+            emptyOption.textContent = "-- Select Parameter --";
+            select.appendChild(emptyOption);
+
+            // Lọc contexts đang dùng PG này
+            const usedContexts = allContexts.filter(ctx => ctx.usedByPGs && ctx.usedByPGs.includes(pg.name));
+
+            allContexts.forEach(ctx => {
+                ctx.component.parameters.forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.parameter.name;
+                    opt.textContent = p.parameter.name;
+                    // nếu context này đang dùng PG hiện tại thì select
+                    if (usedContexts.includes(ctx)) opt.selected = true;
+                    select.appendChild(opt);
+                });
+            });
+
+            tdParam.appendChild(select);
+            tr.appendChild(tdParam);
+            tbody.appendChild(tr);
+        });
+    }
+
+    // ================================
+    // 4. Start / Stop PG
+    // ================================
+    function updateState(groupId, action) {
+        fetch(`/process-groups/${groupId}/${action}`, { method: 'POST' })
+            .then(r => r.text())
+            .then(alert)
+            .catch(alert);
+    }
+
+    // INIT
+    loadAllParameterContexts();
+</script>
+
+</body>
+</html>
