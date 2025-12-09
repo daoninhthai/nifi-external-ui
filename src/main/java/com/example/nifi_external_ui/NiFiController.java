@@ -70,4 +70,12 @@ public class NiFiController {
         niFiService.setParameterContextForPG(pgId, pcId);
         return "Parameter context updated";
     }
+
+    @PostMapping("/update-token")
+    public String updateToken(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        niFiService.updateAuthToken( token);
+        return "Token updated";
+    }
+
 }

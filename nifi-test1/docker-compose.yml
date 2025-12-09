@@ -60,10 +60,10 @@ services:
       NIFI_JVM_DEBUG: "true"
       NIFI_JVM_DEBUG_PORT: "5005"
  
-      SINGLE_USER_CREDENTIALS_USERNAME: "admin"
-      SINGLE_USER_CREDENTIALS_PASSWORD: "123456aA@"
+      # SINGLE_USER_CREDENTIALS_USERNAME: "admin"
+      # SINGLE_USER_CREDENTIALS_PASSWORD: "123456aA@"
       NIFI_WEB_CSRF_PROTECTION_ENABLED: "false"
-      # NIFI_REGISTRY_URL: http://nifi-registry:18080
+      NIFI_REGISTRY_URL: http://nifi-registry:18080S
     ports:
       - "8080:8080"
       - "8081:8081"

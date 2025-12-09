@@ -1,6 +1,10 @@
 package com.example.nifi_external_ui;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
@@ -11,7 +15,6 @@ import java.util.stream.Collectors;
 @Service
 public class NiFiService {
 
-    private final String NIFI_URL = "http://localhost:8080/nifi-api";
     private final RestTemplate restTemplate = new RestTemplate();
     private static final String NIFI_BASE_URL = "http://localhost:8080";
     private static final String NIFI_API_BASE = NIFI_BASE_URL + "/nifi-api";
@@ -19,7 +22,7 @@ public class NiFiService {
      * Lấy thông tin Process Groups dưới root
      */
     public Map<String, Object> getProcessGroups() {
-        String url = NIFI_URL + "/flow/process-groups/root";
+        String url = NIFI_API_BASE + "/flow/process-groups/root";
         return restTemplate.getForObject(url, Map.class);
     }
     public List<Map<String, Object>> getAllProcessGroups() {
@@ -345,5 +348,63 @@ public void setParameterContextForPG(String pgId, String pcId) {
     String urlPut = NIFI_API_BASE + "/process-groups/" + pgId;
     restTemplate.put(urlPut, new HttpEntity<>(body, headersPut));
 }
+
+    public void updateAuthToken( String newToken) {
+        RestTemplate rest = new RestTemplate();
+        String contextId = getPcIdByName("AuthContextKyta");
+        // 1. Lấy current revision
+        JsonNode ctx = rest.getForObject(
+                NIFI_API_BASE + "/parameter-contexts/" + contextId,
+                JsonNode.class
+        );
+
+        int version = ctx.get("revision").get("version").asInt();
+
+        // 2. Build body
+        ObjectNode body = JsonNodeFactory.instance.objectNode();
+
+        ObjectNode revision = body.putObject("revision");
+        revision.put("clientId", UUID.randomUUID().toString());
+        revision.put("version", version);
+
+        body.put("id", contextId);
+
+        ObjectNode comp = body.putObject("component");
+        comp.put("id", contextId);
+        comp.put("name", ctx.get("component").get("name").asText());
+
+        ArrayNode params = comp.putArray("parameters");
+
+        ObjectNode paramNode = params.addObject();
+        ObjectNode param = paramNode.putObject("parameter");
+        param.put("name", "auth_token");
+        param.put("value", newToken);
+        param.put("sensitive", false);
+
+        // 3. Gọi API update
+        rest.postForObject(
+                NIFI_API_BASE + "/parameter-contexts/" + contextId + "/update-requests",
+                body,
+                String.class
+        );
+    }
+
+
+    public String getPcIdByName(String contextName) {
+        List<Map<String, Object>> contexts = getAllParameterContexts();
+
+        for (Map<String, Object> ctx : contexts) {
+            Map<String, Object> component = (Map<String, Object>) ctx.get("component");
+            if (component == null) continue;
+
+            String name = (String) component.get("name");
+
+            if (contextName.equals(name)) {
+                return (String) component.get("id");   // ⬅ chính là pcId
+            }
+        }
+
+        throw new RuntimeException("Không tìm thấy Parameter Context tên: " + contextName);
+    }
 
 }

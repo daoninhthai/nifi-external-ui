@@ -13,7 +13,8 @@
 <body>
 
 <h1>NiFi Process Groups</h1>
-
+<input type="text" id="tokenInput" placeholder="Nhập Bearer Token..." />
+<button onclick="sendToken()">Cập nhật token</button>
 <table>
     <thead>
     <tr>
@@ -141,6 +142,21 @@ function updateParameterContext(pgId, pcId) {
     .then(alert)
     .catch(err => alert(err));
 }
+
+    function sendToken() {
+        const token = document.getElementById("tokenInput").value;
+
+        fetch('/update-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+        })
+            .then(r => r.text())
+            .then(alert)
+            .catch(err => alert(err));
+    }
+
+
     // INIT
     loadAllParameterContexts();
 </script>
