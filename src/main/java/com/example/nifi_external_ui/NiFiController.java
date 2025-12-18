@@ -1,5 +1,6 @@
 package com.example.nifi_external_ui;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -16,18 +17,6 @@ public class NiFiController {
     public NiFiController(NiFiService niFiService) {
         this.niFiService = niFiService;
     }
-
-//    @GetMapping("/")
-//    public String index(Model model) {
-//        Map<String, Object> flow = niFiService.getProcessGroups();
-//        // flow.get("processGroupFlow") -> Map
-//        Map<String, Object> pgFlow = (Map<String, Object>) flow.get("processGroupFlow");
-//        Map<String, Object> flowInner = (Map<String, Object>) pgFlow.get("flow");
-//        List<Map<String,Object>> processGroups = (List<Map<String,Object>>) flowInner.get("processGroups");
-//
-//        model.addAttribute("processGroups", processGroups);
-//        return "index";
-//    }
 
     @GetMapping("/process-groups-list")
     @ResponseBody
@@ -78,4 +67,17 @@ public class NiFiController {
         return "Token updated";
     }
 
+    @PostMapping("/nifi-test-mapping")
+    public ResponseEntity<Object> nifiTestMapping(
+            @RequestBody NifiTestMappingRequest request
+    ) throws Exception {
+
+        return ResponseEntity.ok(
+                niFiService.buildPayload(
+                        request.getFormInputStr(),
+                        request.getAfterTaskData(),
+                        request.getTicketId()
+                )
+        );
+    }
 }

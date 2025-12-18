@@ -33,38 +33,6 @@ public class NiFiService {
         return restTemplate.getForObject(url, Map.class);
     }
 
-//    private List<Map<String, Object>> getProcessGroupsRecursive(String groupId) {
-//        List<Map<String, Object>> result = new ArrayList<>();
-//
-//        Map<String, Object> flow = getProcessGroupFlow(groupId);
-//
-//        Map<String, Object> pgFlow = (Map<String, Object>) flow.get("processGroupFlow");
-//        Map<String, Object> flowInner = (Map<String, Object>) pgFlow.get("flow");
-//
-//        List<Map<String, Object>> groups = (List<Map<String, Object>>) flowInner.get("processGroups");
-//
-//        if (groups == null) return result;
-//
-//        for (Map<String, Object> g : groups) {
-//            Map<String, Object> component = (Map<String, Object>) g.get("component");
-//            if (component != null) {
-//                Map<String, Object> item = new HashMap<>();
-//                item.put("id", component.get("id"));
-//                item.put("name", component.get("name"));
-//                result.add(item);
-//            }
-//
-//            // lấy id của group con
-//            if (component != null && component.get("id") != null) {
-//                String childId = (String) component.get("id");
-//
-//                // tiếp tục đệ quy
-//                result.addAll(getProcessGroupsRecursive(childId));
-//            }
-//        }
-//
-//        return result;
-//    }
 private List<Map<String, Object>> getProcessGroupsRecursive(String groupId) {
 
     List<Map<String, Object>> result = new ArrayList<>();
@@ -185,29 +153,6 @@ private List<Map<String, Object>> getProcessGroupsRecursive(String groupId) {
         }
     }
 
-    /**
-     * Lấy ParameterContextId từ Process Group
-     */
-//    public List<Map<String, Object>> getAllParameterContexts() {
-//        String url = NIFI_API_BASE + "/flow/parameter-contexts";
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.set("Accept", "application/json, text/javascript, */*; q=0.01");
-//        headers.set("X-Requested-With", "XMLHttpRequest");
-//
-//        // Nếu NiFi của bạn có token thì thêm
-//        headers.set("Request-Token", "__Secure-Request-Token");  // thay token thật
-//
-//        HttpEntity<Void> entity = new HttpEntity<>(headers);
-//
-//        ResponseEntity<Map> response =
-//                restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
-//
-//        Map<String, Object> body = response.getBody();
-//        if (body == null) return List.of();
-//
-//        return (List<Map<String, Object>>) body.get("parameterContexts");
-//    }
     public List<Map<String, Object>> getAllParameterContexts() {
         String url = NIFI_API_BASE + "/flow/parameter-contexts";
 
@@ -273,37 +218,7 @@ private List<Map<String, Object>> getProcessGroupsRecursive(String groupId) {
         return (String) component.get("name");
 
     }
-//    public void setParameterContextForPG(String pgId, String pcId) {
-//        Map<String, Object> pgFlow = getProcessGroupFlow(pgId);
-//
-//        if (pgFlow == null) throw new RuntimeException("Cannot get PG flow for " + pgId);
-//
-//        Map<String,Object> pgFlowMap = (Map<String,Object>) pgFlow.get("processGroupFlow");
-//        Map<String,Object> component = (Map<String,Object>) pgFlowMap.get("component");
-//        Map<String,Object> revisionInfo = (Map<String,Object>) pgFlow.get("revision");
-//
-//        Map<String,Object> revision = new HashMap<>();
-//        revision.put("clientId", revisionInfo.get("clientId"));
-//        revision.put("version", revisionInfo.get("version"));
-//
-//        Map<String,Object> paramContextMap = new HashMap<>();
-//        paramContextMap.put("id", pcId);
-//        component.put("parameterContext", paramContextMap);
-//
-//        Map<String,Object> body = new HashMap<>();
-//        body.put("revision", revision);
-//        body.put("disconnectedNodeAcknowledged", false);
-//        body.put("processGroupUpdateStrategy", "DIRECT_CHILDREN");
-//        body.put("component", component);
-//
-//        HttpHeaders headers = new HttpHeaders();
-//        headers.setContentType(MediaType.APPLICATION_JSON);
-//        headers.add("X-Requested-With", "XMLHttpRequest");
-//        headers.add("Request-Token", "__Secure-Request-Token"); // token thật
-//
-//        String url = NIFI_API_BASE + "/process-groups/" + pgId;
-//        restTemplate.put(url, new HttpEntity<>(body, headers));
-//    }
+
 public void setParameterContextForPG(String pgId, String pcId) {
     // 1. Lấy PG info từ ?uiOnly=true để có revision hợp lệ
     String urlGet = NIFI_API_BASE + "/process-groups/" + pgId + "?uiOnly=true";
@@ -407,4 +322,33 @@ public void setParameterContextForPG(String pgId, String pcId) {
         throw new RuntimeException("Không tìm thấy Parameter Context tên: " + contextName);
     }
 
+    public Map<String, Object> buildPayload(
+            Object formInputStr,
+            AfterTaskData afterTaskData,
+            String ticketId) {
+
+        if (formInputStr == null) {
+            return new HashMap<>();
+        }
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("formDataFields", formInputStr);
+        request.put("afterTaskData", afterTaskData);
+        request.put("ticketId", ticketId);
+
+        String nifiUrl = "http://localhost:8081/mapping/simple";
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<Map<String, Object>> entity =
+                new HttpEntity<>(request, headers);
+
+        ResponseEntity<Map> response =
+                restTemplate.postForEntity(nifiUrl, entity, Map.class);
+
+        return response.getBody();
+    }
 }

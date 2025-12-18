@@ -26,6 +26,25 @@
     </thead>
     <tbody id="pgTableBody"></tbody>
 </table>
+<h2>NiFi Test Mapping (Raw JSON)</h2>
+
+<div style="margin-bottom:10px;">
+    <label>Request Body (JSON)</label>
+    <textarea id="rawRequestBody"
+              rows="8"
+              style="width:100%;"
+              placeholder='Paste toàn bộ JSON body vào đây'></textarea>
+</div>
+
+<button onclick="callNifiTestMapping()">Send to NiFi</button>
+
+<div style="margin-top:10px;">
+    <label>Mapping Result</label>
+    <textarea id="mappingResult"
+              rows="8"
+              style="width:100%;"
+              readonly></textarea>
+</div>
 
 <script>
     let allContexts = []; // chứa toàn bộ parameter contexts
@@ -156,6 +175,43 @@ function updateParameterContext(pgId, pcId) {
             .catch(err => alert(err));
     }
 
+    function callNifiTestMapping() {
+        const rawBody = document.getElementById("rawRequestBody").value;
+
+        if (!rawBody) {
+            alert("Body rỗng");
+            return;
+        }
+
+        // validate JSON trước khi gửi
+        try {
+            JSON.parse(rawBody);
+        } catch (e) {
+            alert("JSON không hợp lệ");
+            return;
+        }
+
+        fetch("/nifi-test-mapping", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: rawBody
+        })
+            .then(res => {
+                if (!res.ok) throw new Error("Call API failed");
+                console.log('res',res);
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById("mappingResult").value =
+                    JSON.stringify(data, null, 2);
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Lỗi khi gọi mapping");
+            });
+    }
 
     // INIT
     loadAllParameterContexts();
